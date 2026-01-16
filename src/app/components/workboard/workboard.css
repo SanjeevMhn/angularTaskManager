@@ -1,0 +1,39 @@
+.menu-list {
+  top: calc(0.5rem + anchor(bottom));
+  left: calc(-8.5rem + anchor(left));
+  .menu-item {
+    padding: 1.2rem;
+    background-color: #fff;
+    cursor: pointer;
+    width: 100%;
+    text-align: left;
+    white-space: nowrap;
+    &:hover {
+      background-color: #add0fd97;
+    }
+  }
+}
+
+.task-list{
+  .task-item{
+    position: relative;
+    &:before{
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 100%;
+      width: 0.65rem;
+      background-color: #90a1b9;
+    }
+
+    .btn{
+      display: none;
+    }
+    &:hover{
+      .btn{
+        display: flex;
+      }
+    }
+  }
+}

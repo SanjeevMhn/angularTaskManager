@@ -1,21 +1,21 @@
 import {
   Component,
-  computed,
   ElementRef,
   inject,
-  signal,
   ViewChild,
-  WritableSignal,
 } from '@angular/core';
 import { TaskStatusType, TaskType, WorkboardType } from './workboard-types';
 import { MatDialog } from '@angular/material/dialog';
 import { TaskForm } from '../task-form/task-form';
 import { Task } from '../../services/task/task';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
+import { WorkboardService } from '../../services/workboard/workboard-service';
+import { AsyncPipe } from '@angular/common';
+import { startWith, Subject, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-workboard',
-  imports: [],
+  imports: [AsyncPipe],
   templateUrl: './workboard.html',
   styleUrl: './workboard.css',
 })
@@ -26,85 +26,34 @@ export class Workboard {
   @ViewChild('menuList', { static: false }) menuList!: ElementRef<HTMLElement>;
 
   public tasksService = inject(Task);
-  public workboards: WritableSignal<Array<WorkboardType>> = signal([
-    {
-      id: 1,
-      name: 'Backlogs',
-      tasks: [],
-    },
-    {
-      id: 2,
-      name: 'Doing',
-      tasks: [],
-    },
-    {
-      id: 3,
-      name: 'QA',
-      tasks: [],
-    },
-    {
-      id: 4,
-      name: 'QA Approved',
-      tasks: [],
-    },
-    {
-      id: 5,
-      name: 'Redo',
-      tasks: [],
-    },
-  ]);
+  private workboardService = inject(WorkboardService);
 
-  workboardsTasks = computed(() => {
-    return this.tasksService.getAllTasks().length > 0
-      ? Object.values(
-          this.workboards().reduce((acc: any, curr) => {
-            this.tasksService.getAllTasks().forEach((task) => {
-              if (curr.name == task.status) {
-                if (!acc[curr.name]) {
-                  acc[curr.name] = {};
-                  acc[curr.name] = {
-                    ...curr,
-                    tasks: [task],
-                  };
-                } else {
-                  acc[curr.name] = {
-                    ...acc[curr.name],
-                    tasks: [...acc[curr.name].tasks, task],
-                  };
-                }
-              } else {
-                if (!acc[curr.name]) {
-                  acc[curr.name] = {};
-                  acc[curr.name] = {
-                    ...curr,
-                    tasks: [],
-                  };
-                }
-              }
-            });
+  getWorkboardSubject = new Subject<void>();
+  getWorkboards$ = this.getWorkboardSubject.pipe(
+    startWith(undefined),
+    switchMap((_) => {
+      return this.workboardService.getBoards();
+    }),
+  );
 
-            return acc;
-          }, {}) as WorkboardType[]
-        )
-      : this.workboards();
-  });
-
-  addTask(board: string) {
+  addTask(board_id: number) {
     const taskFormDialog = this.dialog
       .open(TaskForm, {
         data: {
-          task_board: board,
+          task_board: board_id,
         },
       })
       .addPanelClass('w-[min(90%,62rem)]');
 
     taskFormDialog.afterClosed().subscribe((_) => {
       this.menuList.nativeElement.hidePopover();
+      this.workboardService.getBoards();
+      this.getWorkboardSubject.next();
     });
   }
 
-  editTask(board: string, task: number) {
-    this.dialog
+  editTask(board: number, task: number) {
+    const dialog = this.dialog
       .open(TaskForm, {
         data: {
           task_board: board,
@@ -112,6 +61,10 @@ export class Workboard {
         },
       })
       .addPanelClass('w-[min(90%,62rem)]');
+
+    dialog.afterClosed().subscribe(_ => {
+      this.getWorkboardSubject.next();
+    })
   }
 
   draggedTask: TaskType | null = null;
@@ -119,21 +72,30 @@ export class Workboard {
 
   onTaskDragStart(event: DragEvent, task: TaskType) {
     this.draggedTask = task;
-    this.dragging = true
+    this.dragging = true;
   }
 
-  onTaskDrop(event: any, board: WorkboardType) {
+  onTaskDrop(event: any, board_id: number) {
     if (this.draggedTask == null) {
       event.preventDefault();
       return;
     }
 
-    this.tasksService.updateTask(this.draggedTask.id, {
-      ...this.draggedTask,
-      status: board.name as TaskStatusType,
-    });
+    this.tasksService
+      .updateTask(this.draggedTask.id, {
+        ...this.draggedTask,
+        workboardId: board_id,
+      })
+      .subscribe({
+        next: (_) => {
+          this.getWorkboardSubject.next();
+        },
+        error: (err) => {
+          console.error(err);
+        },
+      });
 
-    this.draggedTask = null
-    this.dragging = false
+    this.draggedTask = null;
+    this.dragging = false;
   }
 }

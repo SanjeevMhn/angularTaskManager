@@ -4,9 +4,7 @@ export type TaskType = {
   id: number;
   name: string;
   description: string;
-  assigned_to: string;
-  assigned_by: string;
-  status: TaskStatusType;
+  workboardId: number
 };
 
 export type WorkboardType = {

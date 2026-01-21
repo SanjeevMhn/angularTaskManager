@@ -43,7 +43,11 @@
         type="submit"
         class="bg-blue-500 text-white border border-blue-600 p-[1.5rem] cursor-pointer"
       >
-        Create Task
+        @if(data.edit_task){
+          Update Task
+        }@else {
+          Create Task
+        }
       </button>
     </div>
   </div>
